@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>M.Webs Neon | Ultra Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Orbitron:wght@900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --neon-blue: #00d2ff;
+            --neon-pink: #ff007b;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: #020205;
+            color: #fff;
+            margin: 0; padding: 0;
+            height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* خلفية نيون متحركة (النقاط المتحركة) */
+        #bg-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+        }
+
+        header { padding: 20px; display: flex; align-items: center; z-index: 100; background: rgba(0,0,0,0.2); }
+        
+        .menu-trigger { font-size: 1.5rem; color: var(--neon-blue); cursor: pointer; padding: 10px; }
+        
+        .logo { 
+            font-family: 'Orbitron', sans-serif; font-size: 1.8rem; font-weight: 900; font-style: italic;
+            flex-grow: 1; text-align: center; text-shadow: 0 0 15px var(--neon-blue);
+        }
+        .logo span.m { color: var(--neon-blue); }
+        .logo span.webs { color: var(--neon-pink); text-decoration: underline; }
+
+        /* القائمة الجانبية Drawer */
+        .sidebar {
+            position: fixed; top: 0; right: -280px; width: 280px; height: 100%;
+            background: rgba(5, 5, 10, 0.95); backdrop-filter: blur(20px);
+            z-index: 1000; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 40px 20px; border-left: 1px solid var(--neon-blue);
+        }
+        .sidebar.open { right: 0; box-shadow: -10px 0 50px rgba(0,0,0,0.8); }
+        .sidebar-item {
+            padding: 15px; margin-bottom: 10px; background: rgba(255,255,255,0.05);
+            border-radius: 15px; cursor: pointer; display: flex; align-items: center; gap: 15px;
+            transition: 0.3s;
+        }
+        .sidebar-item:active { background: var(--neon-blue); color: #000; }
+
+        /* حاوية البطاقات */
+        .grid-container {
+            display: flex; align-items: center; overflow-x: auto;
+            scroll-snap-type: x mandatory; height: 80vh; padding: 0 10vw; gap: 20px;
+        }
+        .grid-container::-webkit-scrollbar { display: none; }
+
+        .site-card {
+            min-width: 80vw; height: 65vh; scroll-snap-align: center;
+            background: var(--glass); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px);
+            border: 1px solid var(--glass-border); border-radius: 35px;
+            display: flex; flex-direction: column; transition: 0.5s ease;
+            transform: scale(0.85); opacity: 0.4; overflow: hidden;
+            position: relative;
+        }
+
+        .site-card.active { transform: scale(1); opacity: 1; border-color: var(--neon-blue); }
+
+        .site-img { width: 100%; height: 45%; object-fit: cover; filter: brightness(0.8); }
+
+        .site-content { padding: 20px; text-align: center; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .site-content h3 { font-size: 1.5rem; margin: 0; color: var(--neon-blue); }
+        .desc-text { color: #aaa; font-size: 0.85rem; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+
+        .play-btn { 
+            background: linear-gradient(90deg, var(--neon-blue), #0072ff); 
+            color: #fff; text-decoration: none; padding: 14px; border-radius: 18px; 
+            font-weight: 900; box-shadow: 0 5px 15px rgba(0, 210, 255, 0.3);
+        }
+
+        /* نافذة التثبيت */
+        .install-modal {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: #fff; color: #000; padding: 15px 25px; border-radius: 20px;
+            display: none; align-items: center; gap: 15px; z-index: 2000; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); backdrop-filter: blur(20px);
+            display: none; justify-content: center; align-items: center; z-index: 2000;
+        }
+        .input-card { background: #111; padding: 25px; border-radius: 25px; width: 85%; max-width: 400px; border: 1px solid var(--neon-blue); }
+        input, textarea { width: 100%; background: #000; border: 1px solid #333; padding: 12px; border-radius: 12px; color: #fff; margin-bottom: 10px; font-family: inherit; }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <header>
+        <div class="menu-trigger" onclick="toggleSidebar()"><i class="fas fa-bars-staggered"></i></div>
+        <h1 class="logo"><span class="m">M</span><span class="webs">.Webs</span></h1>
+        <div style="width: 40px;"></div>
+    </header>
+
+    <div class="sidebar" id="sidebar">
+        <div style="text-align: left; margin-bottom: 30px;" onclick="toggleSidebar()"><i class="fas fa-xmark fa-2x"></i></div>
+        <div class="sidebar-item" onclick="checkAuth(() => openModal())">
+            <i class="fas fa-plus-circle"></i> إضافة لعبة جديدة
+        </div>
+        <div class="sidebar-item" onclick="window.open('https://wa.me/201118274250')">
+            <i class="fab fa-whatsapp"></i> تواصل واتساب
+        </div>
+        <div class="sidebar-item" onclick="resetCredentials()">
+            <i class="fas fa-user-shield"></i> إعدادات الأمان
+        </div>
+        <div style="margin-top: 50px; text-align: center; opacity: 0.3;">M.Webs v4.0</div>
+    </div>
+
+    <div class="grid-container" id="container"></div>
+
+    <div class="install-modal" id="installPrompt">
+        <img src="https://cdn-icons-png.flaticon.com/512/5713/5713295.png" width="40">
+        <div style="font-size: 13px;">هل تريد تثبيت التطبيق على الشاشة؟</div>
+        <button onclick="installPWA()" style="background:var(--neon-blue); border:none; padding:8px 15px; border-radius:10px; font-weight:bold;">نعم</button>
+    </div>
+
+    <div class="modal-overlay" id="modal">
+        <div class="input-card">
+            <h2 id="modalTitle" style="text-align: center; color: var(--neon-blue);">بيانات اللعبة</h2>
+            <input type="text" id="siteName" placeholder="اسم اللعبة">
+            <textarea id="siteDesc" placeholder="وصف اللعبة..."></textarea>
+            <input type="text" id="siteUrl" placeholder="رابط Netlify">
+            <input type="text" id="siteImg" placeholder="رابط الصورة">
+            <button class="play-btn" style="width: 100%;" onclick="saveGame()">حفظ التعديلات 🚀</button>
+            <button onclick="toggleModal()" style="width: 100%; background:none; border:none; color: #64748b; margin-top: 10px;">إلغاء</button>
+        </div>
+    </div>
+
+    <script>
+        let sites = JSON.parse(localStorage.getItem('MWEBS_DATA')) || [];
+        let config = JSON.parse(localStorage.getItem('MWEBS_CONFIG')) || { admin: "M admin", pass: "30811122102354" };
+        let currentEditId = null;
+
+        // رسم الخلفية المتحركة (Canvas)
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let dots = [];
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            dots = Array.from({length: 40}, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: (Math.random() - 0.5) * 0.5,
+                size: Math.random() * 2
+            }));
+        }
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00d2ff22';
+            dots.forEach(d => {
+                d.x += d.vx; d.y += d.vy;
+                if(d.x < 0 || d.x > canvas.width) d.vx *= -1;
+                if(d.y < 0 || d.y > canvas.height) d.vy *= -1;
+                ctx.beginPath(); ctx.arc(d.x, d.y, d.size, 0, Math.PI*2); ctx.fill();
+            });
+            requestAnimationFrame(draw);
+        }
+        window.addEventListener('resize', initCanvas);
+        initCanvas(); draw();
+
+        function render() {
+            const container = document.getElementById('container');
+            container.innerHTML = '';
+            sites.forEach((site) => {
+                const card = document.createElement('div');
+                card.className = 'site-card';
+                card.innerHTML = `
+                    <img src="${site.img || 'https://via.placeholder.com/400x300/1e293b/fff?text=No+Image'}" class="site-img">
+                    <div class="site-content">
+                        <h3>${site.name}</h3>
+                        <p class="desc-text">${site.desc || 'لا يوجد وصف متاح للعبة.'}</p>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                            <span onclick="checkAuth(() => editGame(${site.id}))" style="color:var(--neon-blue); font-size:12px;"><i class="fas fa-edit"></i> تعديل</span>
+                            <span onclick="checkAuth(() => deleteGame(${site.id}))" style="color:var(--neon-pink); font-size:12px;"><i class="fas fa-trash"></i> حذف</span>
+                        </div>
+                        <a href="${site.url}" class="play-btn" target="_blank">ابدأ اللعب الآن</a>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            updateEffects();
+        }
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+        function toggleModal() { document.getElementById('modal').style.display = (document.getElementById('modal').style.display === 'flex') ? 'none' : 'flex'; }
+
+        function checkAuth(callback) {
+            const p = prompt("أدخل كلمة السر:");
+            if(p === config.pass) callback();
+            else if(p !== null) alert("خطأ!");
+        }
+
+        function openModal() {
+            currentEditId = null;
+            document.getElementById('modalTitle').innerText = "إضافة لعبة";
+            ['siteName', 'siteDesc', 'siteUrl', 'siteImg'].forEach(id => document.getElementById(id).value = '');
+            toggleSidebar(); toggleModal();
+        }
+
+        function editGame(id) {
+            currentEditId = id;
+            const site = sites.find(s => s.id === id);
+            document.getElementById('modalTitle').innerText = "تعديل بيانات اللعبة";
+            document.getElementById('siteName').value = site.name;
+            document.getElementById('siteDesc').value = site.desc;
+            document.getElementById('siteUrl').value = site.url;
+            document.getElementById('siteImg').value = site.img;
+            toggleModal();
+        }
+
+        function saveGame() {
+            const data = {
+                id: currentEditId || Date.now(),
+                name: document.getElementById('siteName').value,
+                desc: document.getElementById('siteDesc').value,
+                url: document.getElementById('siteUrl').value,
+                img: document.getElementById('siteImg').value
+            };
+            if(currentEditId) sites[sites.findIndex(s => s.id === currentEditId)] = data;
+            else sites.unshift(data);
+            localStorage.setItem('MWEBS_DATA', JSON.stringify(sites));
+            render(); toggleModal();
+        }
+
+        function deleteGame(id) {
+            sites = sites.filter(s => s.id !== id);
+            localStorage.setItem('MWEBS_DATA', JSON.stringify(sites));
+            render();
+        }
+
+        function updateEffects() {
+            const cards = document.querySelectorAll('.site-card');
+            const centerX = window.innerWidth / 2;
+            cards.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const cardCenter = rect.left + rect.width / 2;
+                if (Math.abs(centerX - cardCenter) < 150) card.classList.add('active');
+                else card.classList.remove('active');
+            });
+        }
+        container.addEventListener('scroll', updateEffects);
+
+        // التثبيت
+        function installPWA() {
+            alert("للتثبيت: اضغط على زر 'المشاركة' في متصفحك ثم اختر 'إضافة إلى الشاشة الرئيسية' (Add to Home Screen)");
+            document.getElementById('installPrompt').style.display = 'none';
+        }
+
+        window.onload = () => {
+            render();
+            setTimeout(() => { document.getElementById('installPrompt').style.display = 'flex'; }, 3000);
+        };
+    </script>
+</body>
+</html>
